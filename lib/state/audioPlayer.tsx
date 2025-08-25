@@ -29,10 +29,19 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
   };
 
   const value = useMemo(() => ({ loadFile, seekMs, hasAudio }), [hasAudio]);
-  return <Ctx.Provider value={value}>{children}<audio hidden ref={(el) => (audioRef.current = el)} /></Ctx.Provider>;
+  return (
+    <Ctx.Provider value={value}>
+      {children}
+      <audio
+        hidden
+        ref={(el) => {
+          audioRef.current = el;
+        }}
+      />
+    </Ctx.Provider>
+  );
 }
 
 export function useAudioPlayer() {
   return useContext(Ctx);
 }
-
