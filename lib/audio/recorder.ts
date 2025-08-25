@@ -45,9 +45,11 @@ export class AudioRecorder {
           video: true,
         });
       }
-      this.handlers.onMedia?.(this.media);
+      const stream = this.media as MediaStream;
+      if (!stream) throw new Error("Media stream not available");
+      this.handlers.onMedia?.(stream);
       const mimeType = getPreferredMimeType();
-      this.recorder = new MediaRecorder(this.media, { mimeType });
+      this.recorder = new MediaRecorder(stream, { mimeType });
       this.recorder.ondataavailable = (e) => {
         if (e.data && e.data.size > 0) this.handlers.onChunk?.(e.data);
       };
