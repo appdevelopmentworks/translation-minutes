@@ -40,7 +40,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="ja" suppressHydrationWarning>
       <body className="min-h-dvh antialiased bg-background text-foreground">
-        <div className="mx-auto max-w-screen-sm p-3 sm:p-4 pb-28 md:pb-6" style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 6rem)" }}>
+        <div className="mx-auto max-w-screen-sm p-3 sm:p-4 pt-16 pb-24 md:pt-16 md:pb-6">
           {children}
         </div>
       </body>

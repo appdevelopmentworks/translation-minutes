@@ -18,6 +18,10 @@ import FileTranscribePanel from "@/components/FileTranscribePanel";
 import LocalSessionPanel from "@/components/LocalSessionPanel";
 import AudioPlayerPanel from "@/components/AudioPlayerPanel";
 import { AudioPlayerProvider } from "@/lib/state/audioPlayer";
+import AppBar from "@/components/AppBar";
+import BottomNav from "@/components/BottomNav";
+
+type Tab = "record" | "edit" | "export" | "settings";
 
 function PageInner({
   lines, setLines,
@@ -35,11 +39,9 @@ function PageInner({
   setSpeakerLabels: (u: any) => void;
 }) {
   const { settings, setSettings } = useSettings();
-  return (
-    <main className="space-y-4">
-      <h1 className="text-xl font-semibold">Translation Minutes</h1>
-      <SettingsSheet />
-      <AudioPlayerPanel />
+  const [tab, setTab] = useHashTab();
+  const record = (
+    <>
       <FileTranscribePanel
         onAppend={(newLines, newSegs) => {
           setLines((prev: string[]) => [...prev, ...newLines]);
@@ -53,6 +55,11 @@ function PageInner({
       />
       <LiveTranscript segments={segments} />
       <LiveTranslation lines={translated} />
+      <AudioPlayerPanel />
+    </>
+  );
+  const edit = (
+    <>
       <EditorPanel segments={segments} setSegments={setSegments} speakerLabels={speakerLabels} setSpeakerLabels={setSpeakerLabels} />
       <LocalSessionPanel
         lines={lines}
@@ -81,10 +88,30 @@ function PageInner({
       />
       <ServerSavePanel segments={segments} />
       <DictionaryPanel segments={segments} setSegments={setSegments} />
+    </>
+  );
+  const exp = (
+    <>
       <TranscriptExportPanel segments={segments} labels={speakerLabels} />
       <SummaryPanel fullText={lines.join("\n")} />
       <TranslationPanel fullText={lines.join("\n")} />
-    </main>
+    </>
+  );
+  const settingsView = <SettingsSheet />;
+
+  const titleMap: Record<Tab, string> = { record: "録音", edit: "編集", export: "出力", settings: "設定" };
+
+  return (
+    <>
+      <AppBar title={`Translation Minutes — ${titleMap[tab]}`} />
+      <main className="space-y-4">
+        {tab === "record" && record}
+        {tab === "edit" && edit}
+        {tab === "export" && exp}
+        {tab === "settings" && settingsView}
+      </main>
+      <BottomNav current={tab} onChange={setTab} />
+    </>
   );
 }
 
@@ -112,4 +139,13 @@ export default function Page() {
       </DictionaryProvider>
     </SettingsProvider>
   );
+}
+
+function useHashTab(): [Tab, (t: Tab) => void] {
+  const [tab, setTab] = useState<Tab>(() => (typeof window !== "undefined" && (location.hash.slice(1) as Tab)) || "record");
+  function apply(t: Tab) {
+    setTab(t);
+    if (typeof window !== "undefined") location.hash = t;
+  }
+  return [tab, apply];
 }

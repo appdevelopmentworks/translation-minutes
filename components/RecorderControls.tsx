@@ -194,7 +194,7 @@ export default function RecorderControls({ onTranscript, onSegment, onTranslate 
   }, [settings.vadThresholdDb, settings.vadHangoverMs]);
 
   return (
-    <Card className="space-y-3 md:static fixed bottom-3 left-3 right-3 z-40 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-background/80">
+    <Card className="space-y-3">
       <div className="flex items-center justify-between">
         <div className="text-sm text-muted-foreground">音源</div>
         <div className="flex gap-2">
