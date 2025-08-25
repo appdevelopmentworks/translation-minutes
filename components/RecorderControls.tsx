@@ -16,9 +16,10 @@ type Props = {
   onTranscript: (text: string) => void;
   onSegment?: (seg: TranscriptSegment) => void;
   onTranslate?: (text: string) => void;
+  onRecordingChange?: (recording: boolean) => void;
 };
 
-export default function RecorderControls({ onTranscript, onSegment, onTranslate }: Props) {
+export default function RecorderControls({ onTranscript, onSegment, onTranslate, onRecordingChange }: Props) {
   const [recording, setRecording] = useState(false);
   const [source, setSource] = useState<"mic" | "tab">("mic");
   const [pending, setPending] = useState(false);
@@ -176,12 +177,14 @@ export default function RecorderControls({ onTranscript, onSegment, onTranslate 
     await rec.start();
     startTime.current = null;
     setRecording(true);
+    onRecordingChange?.(true);
   };
 
   const stop = () => {
     recRef.current?.stop();
     vadRef.current?.stop();
     setRecording(false);
+    onRecordingChange?.(false);
   };
 
   useEffect(() => () => recRef.current?.stop(), []);

@@ -73,7 +73,7 @@ export default function SettingsSheet() {
           </label>
         </div>
         <div className="grid gap-2">
-          <div className="text-sm font-medium">エクスポートテンプレ（メタ情報）</div>
+          <div className="text-sm font-medium" id="settings-meta">エクスポートテンプレ（メタ情報）</div>
           <div className="grid sm:grid-cols-3 gap-2">
             <label className="grid gap-1 text-sm">
               <span>会議名</span>
@@ -102,7 +102,7 @@ export default function SettingsSheet() {
           </div>
         </div>
         <div className="grid gap-2">
-          <div className="text-sm font-medium">VAD設定</div>
+          <div className="text-sm font-medium" id="settings-vad">VAD設定</div>
           <div className="grid grid-cols-3 gap-2">
             <label className="grid gap-1 text-sm">
               <span>しきい値(dB)</span>
@@ -131,7 +131,7 @@ export default function SettingsSheet() {
           </div>
         </div>
         <div className="grid gap-2">
-          <div className="text-sm font-medium">ライブ表示/取り込み</div>
+          <div className="text-sm font-medium" id="settings-live">ライブ表示/取り込み</div>
           <div className="grid sm:grid-cols-3 gap-2">
             <label className="grid gap-1 text-sm">
               <span>ライブ字幕に時刻を表示</span>
@@ -160,7 +160,7 @@ export default function SettingsSheet() {
           </div>
         </div>
         <div className="grid gap-2">
-          <div className="text-sm font-medium">翻訳/要約スタイル</div>
+          <div className="text-sm font-medium" id="settings-style">翻訳/要約スタイル</div>
           <div className="grid sm:grid-cols-3 gap-2">
             <label className="grid gap-1 text-sm">
               <span>翻訳フォーマリティ</span>

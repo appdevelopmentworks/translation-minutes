@@ -6,6 +6,7 @@ import LiveTranslation from "@/components/LiveTranslation";
 import SummaryPanel from "@/components/SummaryPanel";
 import TranslationPanel from "@/components/TranslationPanel";
 import SettingsSheet from "@/components/SettingsSheet";
+import SettingsView from "@/components/SettingsView";
 import { SettingsProvider, useSettings } from "@/lib/state/settings";
 import EditorPanel from "@/components/EditorPanel";
 import { TranscriptSegment } from "@/lib/transcript/types";
@@ -20,6 +21,7 @@ import AudioPlayerPanel from "@/components/AudioPlayerPanel";
 import { AudioPlayerProvider } from "@/lib/state/audioPlayer";
 import AppBar from "@/components/AppBar";
 import BottomNav from "@/components/BottomNav";
+import { AnimatePresence, motion } from "framer-motion";
 
 type Tab = "record" | "edit" | "export" | "settings";
 
@@ -40,6 +42,7 @@ function PageInner({
 }) {
   const { settings, setSettings } = useSettings();
   const [tab, setTab] = useHashTab();
+  const [isRecording, setIsRecording] = useState(false);
   const record = (
     <>
       <FileTranscribePanel
@@ -48,10 +51,15 @@ function PageInner({
           setSegments((prev: TranscriptSegment[]) => [...prev, ...newSegs]);
         }}
       />
+      <div className="flex items-center gap-2 text-sm">
+        <span className={`inline-flex h-2 w-2 rounded-full ${isRecording ? "bg-red-500 animate-pulse" : "bg-muted"}`} />
+        <span className="text-muted-foreground">{isRecording ? "録音中" : "停止中"}</span>
+      </div>
       <RecorderControls
         onTranscript={(t) => setLines((prev: string[]) => (t ? [...prev, t] : prev))}
         onSegment={(seg) => setSegments((prev: TranscriptSegment[]) => [...prev, seg])}
         onTranslate={(t) => setTranslated((prev: string[]) => (t ? [...prev, t] : prev))}
+        onRecordingChange={setIsRecording}
       />
       <LiveTranscript segments={segments} />
       <LiveTranslation lines={translated} />
@@ -97,7 +105,7 @@ function PageInner({
       <TranslationPanel fullText={lines.join("\n")} />
     </>
   );
-  const settingsView = <SettingsSheet />;
+  const settingsView = <SettingsView />;
 
   const titleMap: Record<Tab, string> = { record: "録音", edit: "編集", export: "出力", settings: "設定" };
 
@@ -105,10 +113,21 @@ function PageInner({
     <>
       <AppBar title={`Translation Minutes — ${titleMap[tab]}`} />
       <main className="space-y-4">
-        {tab === "record" && record}
-        {tab === "edit" && edit}
-        {tab === "export" && exp}
-        {tab === "settings" && settingsView}
+        <AnimatePresence mode="wait">
+          <motion.section
+            key={tab}
+            initial={{ opacity: 0, x: 10 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -10 }}
+            transition={{ duration: 0.15 }}
+            className="space-y-4"
+          >
+            {tab === "record" && record}
+            {tab === "edit" && edit}
+            {tab === "export" && exp}
+            {tab === "settings" && settingsView}
+          </motion.section>
+        </AnimatePresence>
       </main>
       <BottomNav current={tab} onChange={setTab} />
     </>
