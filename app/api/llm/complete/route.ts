@@ -125,3 +125,6 @@ function buildUserPrompt(
   const tgtL = tgt || "en";
   return `Translate to ${tgtL}:\n\n${text}`;
 }
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const revalidate = 0;

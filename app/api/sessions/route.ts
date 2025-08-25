@@ -18,4 +18,6 @@ export async function POST(req: Request) {
   const created = await prisma.session.create({ data: { title } });
   return NextResponse.json({ session: created });
 }
-
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
