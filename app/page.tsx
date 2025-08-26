@@ -20,7 +20,7 @@ import AudioPlayerPanel from "@/components/AudioPlayerPanel";
 import { AudioPlayerProvider } from "@/lib/state/audioPlayer";
 import AppBar from "@/components/AppBar";
 import BottomNav from "@/components/BottomNav";
-import { AnimatePresence, m } from "framer-motion";
+// animation wrappers removed here to avoid SSR/client type issues
 import { useWakeLock } from "@/lib/state/wakelock";
 import { ToastProvider, useToast } from "@/lib/state/toast";
 
@@ -109,27 +109,17 @@ function PageInner({
   const settingsView = <SettingsView />;
 
   const titleMap: Record<Tab, string> = { record: "録音", edit: "編集", export: "出力", settings: "設定" };
-  const MotionSection: any = m.section as any;
 
   return (
     <>
       <AppBar title={`Translation Minutes — ${titleMap[tab]}`} />
       <main className="space-y-4">
-        <AnimatePresence mode="wait">
-          <MotionSection
-            key={tab}
-            initial={{ opacity: 0, x: 10 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -10 }}
-            transition={{ duration: 0.15 }}
-            className="space-y-4"
-          >
-            {tab === "record" && record}
-            {tab === "edit" && edit}
-            {tab === "export" && exp}
-            {tab === "settings" && settingsView}
-          </MotionSection>
-        </AnimatePresence>
+        <section className="space-y-4">
+          {tab === "record" && record}
+          {tab === "edit" && edit}
+          {tab === "export" && exp}
+          {tab === "settings" && settingsView}
+        </section>
       </main>
       <BottomNav current={tab} onChange={setTab} />
     </>
