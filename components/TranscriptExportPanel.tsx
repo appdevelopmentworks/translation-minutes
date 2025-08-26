@@ -73,9 +73,9 @@ export default function TranscriptExportPanel({ segments, labels }: Props) {
 
   return (
     <Card className="space-y-3">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="text-sm font-medium">Markdown出力（編集内容を反映）</div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <Button variant="outline" onClick={download}>
             出力
           </Button>
@@ -84,12 +84,12 @@ export default function TranscriptExportPanel({ segments, labels }: Props) {
           </Button>
         </div>
       </div>
-      <div className="text-xs text-muted-foreground">
+      <div className="text-xs text-muted-foreground break-words">
         {settings.meetingTitle && `会議名: ${settings.meetingTitle} `}
         {settings.meetingDate && `／ 日付: ${settings.meetingDate} `}
         {settings.meetingParticipants && `／ 参加者: ${settings.meetingParticipants}`}
       </div>
-      <div className="flex items-center gap-3 text-sm">
+      <div className="flex items-center gap-3 text-sm flex-wrap">
         <div className="flex items-center gap-2">
           <span>タイムスタンプ</span>
           <Switch checked={withTimestamps} onCheckedChange={setWithTimestamps} />

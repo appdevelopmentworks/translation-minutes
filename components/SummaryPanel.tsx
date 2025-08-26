@@ -85,7 +85,7 @@ export default function SummaryPanel({ fullText }: { fullText: string }) {
 
   return (
     <Card className="space-y-3">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="text-sm font-medium">要約と出力</div>
         <div className="flex gap-2">
           <Button onClick={summarize} disabled={loading}>
@@ -96,7 +96,7 @@ export default function SummaryPanel({ fullText }: { fullText: string }) {
           </Button>
         </div>
       </div>
-      <div className="text-xs text-muted-foreground">
+      <div className="text-xs text-muted-foreground break-words">
         粒度: {settings.summaryDetail === "concise" ? "簡潔" : settings.summaryDetail === "detailed" ? "詳細" : "標準"} ／
         TL;DR: {settings.summaryIncludeTLDR ? "あり" : "なし"} ／
         項目: {[
@@ -111,7 +111,7 @@ export default function SummaryPanel({ fullText }: { fullText: string }) {
         <div className="space-y-2">
           <div className="text-sm font-medium">## 要約</div>
           <div className="h-px w-full bg-border" />
-          <pre className="whitespace-pre-wrap rounded-md bg-muted/50 p-3 text-sm">{summary}</pre>
+          <pre className="whitespace-pre-wrap rounded-md bg-muted/50 p-3 text-sm break-words">{summary}</pre>
         </div>
       )}
     </Card>

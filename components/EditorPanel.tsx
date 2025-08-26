@@ -68,9 +68,9 @@ export default function EditorPanel({ segments, setSegments, speakerLabels, setS
 
   return (
     <Card className="space-y-3">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="text-sm font-medium">話者編集</div>
-        <div className="flex gap-2 text-sm">
+        <div className="flex gap-2 text-sm flex-wrap">
           <EditableLabel
             value={labelA}
             onChange={(v) => setSpeakerLabels({ ...speakerLabels, A: v })}
@@ -83,7 +83,7 @@ export default function EditorPanel({ segments, setSegments, speakerLabels, setS
           />
         </div>
       </div>
-      <div className="flex gap-2">
+      <div className="flex gap-2 flex-wrap">
         <Button size="sm" variant="outline" onClick={reCluster}>自動クラスタ（A/B）</Button>
         <Button size="sm" variant="outline" onClick={assignAlternating}>A/B交互割当</Button>
         <Button size="sm" onClick={autoMergeSentences}>自動結合（文単位）</Button>
@@ -91,8 +91,8 @@ export default function EditorPanel({ segments, setSegments, speakerLabels, setS
       <div className="space-y-2 max-h-[40vh] overflow-auto pr-1">
         {segments.map((s, i) => (
           <div key={s.id} className="rounded border border-border p-2">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex gap-2 flex-wrap">
                 <Button
                   size="sm"
                   variant={s.speaker === "A" ? "default" : "outline"}

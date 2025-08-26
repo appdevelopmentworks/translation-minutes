@@ -52,13 +52,13 @@ export default function TranslationPanel({ fullText }: { fullText: string }) {
 
   return (
     <Card className="space-y-3">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="text-sm font-medium">翻訳</div>
         <Button onClick={translate} disabled={loading}>
           {loading ? "翻訳中…" : "翻訳"}
         </Button>
       </div>
-      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+      <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
         <div className="flex items-center gap-2">
           <span>フォーマリティ: {settings.translationFormality === "informal" ? "カジュアル" : "フォーマル"}</span>
           <span>見出し: {settings.summaryTitles.tldr}/{settings.summaryTitles.decisions}/…</span>
@@ -75,7 +75,7 @@ export default function TranslationPanel({ fullText }: { fullText: string }) {
         <div className="space-y-2">
           <div className="text-sm font-medium">## 翻訳結果</div>
           <div className="h-px w-full bg-border" />
-          <pre className="whitespace-pre-wrap rounded-md bg-muted/50 p-3 text-sm">{output}</pre>
+          <pre className="whitespace-pre-wrap rounded-md bg-muted/50 p-3 text-sm break-words">{output}</pre>
         </div>
       )}
     </Card>
