@@ -20,7 +20,7 @@ import AudioPlayerPanel from "@/components/AudioPlayerPanel";
 import { AudioPlayerProvider } from "@/lib/state/audioPlayer";
 import AppBar from "@/components/AppBar";
 import BottomNav from "@/components/BottomNav";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, m } from "framer-motion";
 import { useWakeLock } from "@/lib/state/wakelock";
 import { ToastProvider, useToast } from "@/lib/state/toast";
 
@@ -115,7 +115,7 @@ function PageInner({
       <AppBar title={`Translation Minutes — ${titleMap[tab]}`} />
       <main className="space-y-4">
         <AnimatePresence mode="wait">
-          <motion.section
+          <m.section
             key={tab}
             initial={{ opacity: 0, x: 10 }}
             animate={{ opacity: 1, x: 0 }}
@@ -127,7 +127,7 @@ function PageInner({
             {tab === "edit" && edit}
             {tab === "export" && exp}
             {tab === "settings" && settingsView}
-          </motion.section>
+          </m.section>
         </AnimatePresence>
       </main>
       <BottomNav current={tab} onChange={setTab} />
