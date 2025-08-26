@@ -33,7 +33,7 @@ function CogIcon(props: React.SVGProps<SVGSVGElement>) {
 type Tab = "record" | "edit" | "export" | "settings";
 
 export default function BottomNav({ current, onChange }: { current: Tab; onChange: (t: Tab) => void }) {
-  const items: { key: Tab; label: string; icon: (p: React.SVGProps<SVGSVGElement>) => JSX.Element }[] = [
+  const items: { key: Tab; label: string; icon: React.FC<React.SVGProps<SVGSVGElement>> }[] = [
     { key: "record", label: "録音", icon: MicIcon },
     { key: "edit", label: "編集", icon: PencilIcon },
     { key: "export", label: "出力", icon: UploadIcon },
