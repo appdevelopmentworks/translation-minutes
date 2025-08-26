@@ -22,7 +22,7 @@ export class AudioRecorder {
   private handlers: RecorderHandlers;
 
   constructor(options: RecorderOptions, handlers: RecorderHandlers = {}) {
-    this.options = { timesliceMs: 1500, ...options };
+    this.options = { timesliceMs: 1000, ...options };
     this.handlers = handlers;
   }
 

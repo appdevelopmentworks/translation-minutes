@@ -89,61 +89,79 @@ export default function RecorderControls({ onTranscript, onSegment, onTranslate,
     maybeStartTranslateWorkers();
   }
 
-  const onChunk = useCallback(
-    async (blob: Blob) => {
-      if (!settings.sttEnabled) return;
-      setPending(true);
-      try {
-        const stt = new STTOrchestrator({
-          prefer: settings.apiProvider,
-          groqApiKey: settings.groqApiKey,
-          openaiApiKey: settings.openaiApiKey,
-          viaProxy: settings.sttViaProxy,
-        });
-        const res = await stt.transcribe(blob, { language: settings.language });
-        const now = Date.now();
-        const sessionStart = startTime.current ?? now;
-        if (startTime.current === null) startTime.current = now;
-        if (Array.isArray(res.segments) && res.segments.length > 0) {
-          for (const s of res.segments) {
-            const piece = basicPunctuate(removeFillers(s.text || ""));
-            if (!piece) continue;
-            onTranscript(piece);
-            const spk = lastSpeaker.current;
-            const startMs = typeof s.start === "number" ? Math.max(0, Math.floor(s.start * 1000)) : (Date.now() - sessionStart);
-            const endMs = typeof s.end === "number" ? Math.max(0, Math.floor(s.end * 1000)) : undefined;
-            onSegment?.({ id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, text: piece, speaker: spk, startMs, endMs });
-          }
-        } else {
-          const cleaned = basicPunctuate(removeFillers(res.text || ""));
-          if (cleaned) {
-            onTranscript(cleaned);
-            const spk = lastSpeaker.current;
-            onSegment?.({ id: `${now}`, text: cleaned, speaker: spk, startMs: now - sessionStart });
-          }
+  const sttQueueRef = useRef<Blob[]>([]);
+  const sttBusyRef = useRef<boolean>(false);
+
+  const processSttQueue = useCallback(async () => {
+    if (sttBusyRef.current) return;
+    if (!settings.sttEnabled) {
+      sttQueueRef.current = [];
+      return;
+    }
+    const blob = sttQueueRef.current.shift();
+    if (!blob) return;
+    sttBusyRef.current = true;
+    setPending(true);
+    try {
+      const stt = new STTOrchestrator({
+        prefer: settings.apiProvider,
+        groqApiKey: settings.groqApiKey,
+        openaiApiKey: settings.openaiApiKey,
+        viaProxy: settings.sttViaProxy,
+      });
+      const res = await stt.transcribe(blob, { language: settings.language });
+      const now = Date.now();
+      const sessionStart = startTime.current ?? now;
+      if (startTime.current === null) startTime.current = now;
+      if (Array.isArray(res.segments) && res.segments.length > 0) {
+        for (const s of res.segments) {
+          const piece = basicPunctuate(removeFillers(s.text || ""));
+          if (!piece) continue;
+          onTranscript(piece);
+          const spk = lastSpeaker.current;
+          const startMs = typeof s.start === "number" ? Math.max(0, Math.floor(s.start * 1000)) : (Date.now() - sessionStart);
+          const endMs = typeof s.end === "number" ? Math.max(0, Math.floor(s.end * 1000)) : undefined;
+          onSegment?.({ id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, text: piece, speaker: spk, startMs, endMs });
         }
-        // 逐次翻訳（設定が有効な場合）: キュー化して順次処理
-        if (settings.translateEnabled && onTranslate) {
-          const joined = Array.isArray(res.segments) && res.segments.length > 0 ? res.segments.map((s) => s.text).join(" ") : (res.text || "");
-          const baseText = basicPunctuate(removeFillers(joined));
-          if (baseText) {
-            const t = settings.translateUseDictionary && mappings?.length ? applyMappings(baseText, mappings) : baseText;
-            enqueueTranslation(t);
-          }
+      } else {
+        const cleaned = basicPunctuate(removeFillers(res.text || ""));
+        if (cleaned) {
+          onTranscript(cleaned);
+          const spk = lastSpeaker.current;
+          onSegment?.({ id: `${now}`, text: cleaned, speaker: spk, startMs: now - sessionStart });
         }
-      } catch (e: any) {
-        console.error(e);
-        toast.show(`STTエラー: ${e?.message || e}`, "error");
-      } finally {
-        setPending(false);
       }
-    },
-    [onTranscript, settings]
-  );
+      // 逐次翻訳（設定が有効な場合）
+      if (settings.translateEnabled && onTranslate) {
+        const joined = Array.isArray(res.segments) && res.segments.length > 0 ? res.segments.map((s) => s.text).join(" ") : (res.text || "");
+        const baseText = basicPunctuate(removeFillers(joined));
+        if (baseText) {
+          const t = settings.translateUseDictionary && mappings?.length ? applyMappings(baseText, mappings) : baseText;
+          enqueueTranslation(t);
+        }
+      }
+    } catch (e: any) {
+      console.error(e);
+      toast.show(`STTエラー: ${e?.message || e}`, "error");
+    } finally {
+      sttBusyRef.current = false;
+      setPending(false);
+      // 次のキューがあれば続けて処理
+      if (sttQueueRef.current.length > 0) processSttQueue();
+    }
+  }, [settings, onTranscript]);
+
+  const onChunk = useCallback((blob: Blob) => {
+    if (!settings.sttEnabled) return;
+    // 最新優先で2件まで保持（古いものは間引き）
+    sttQueueRef.current.push(blob);
+    if (sttQueueRef.current.length > 2) sttQueueRef.current.splice(0, sttQueueRef.current.length - 2);
+    processSttQueue();
+  }, [settings.sttEnabled, processSttQueue]);
 
   const start = async () => {
     const rec = new AudioRecorder(
-      { source, timesliceMs: 1500, deviceId },
+      { source, timesliceMs: 1000, deviceId },
       {
         onChunk,
         onMedia: (stream) => {
