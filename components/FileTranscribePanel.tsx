@@ -63,13 +63,13 @@ export default function FileTranscribePanel({ onAppend }: Props) {
               if (!text) continue;
               const startMs = (i * chunkSec * 1000) + (typeof s.start === "number" ? Math.floor(s.start * 1000) : 0);
               const endMs = (i * chunkSec * 1000) + (typeof s.end === "number" ? Math.floor(s.end * 1000) : undefined as any);
-              segs.push({ id: `${Date.now()}-${i}-${j}`, text, startMs, endMs });
+              segs.push({ id: `${Date.now()}-${i}-${j}`, text, speaker: (segs.length % 2 ? "B" : "A"), startMs, endMs });
               sentences.push(text);
             }
           } else {
             const text = basicPunctuate(removeFillers(res.text || ""));
             if (text) {
-              segs.push({ id: `${Date.now()}-${i}`, text, startMs: i * chunkSec * 1000 });
+              segs.push({ id: `${Date.now()}-${i}`, text, speaker: (segs.length % 2 ? "B" : "A"), startMs: i * chunkSec * 1000 });
               sentences.push(text);
             }
           }
@@ -86,6 +86,7 @@ export default function FileTranscribePanel({ onAppend }: Props) {
             .map((s, i) => ({
               id: `${Date.now()}-${i}`,
               text: basicPunctuate(removeFillers(s.text)),
+              speaker: i % 2 === 0 ? "A" : "B",
               startMs: typeof s.start === "number" ? Math.max(0, Math.floor(s.start * 1000)) : i * 2000,
               endMs: typeof s.end === "number" ? Math.max(0, Math.floor(s.end * 1000)) : undefined,
             }));
@@ -97,6 +98,7 @@ export default function FileTranscribePanel({ onAppend }: Props) {
           segs = sentences.map((t, i) => ({
             id: `${now}-${i}`,
             text: t,
+            speaker: i % 2 === 0 ? "A" : "B",
             startMs: i * 2000,
           }));
           segs = autoClusterAB(segs, settings.vadSilenceTurnMs);

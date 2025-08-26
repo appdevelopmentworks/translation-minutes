@@ -1,6 +1,6 @@
 "use client";
 import Card from "@/components/ui/card";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, m } from "framer-motion";
 
 export default function LiveBilingual({
   source,
@@ -11,13 +11,14 @@ export default function LiveBilingual({
 }) {
   const rows = pairRows(source, translated);
   const lastIdx = rows.length - 1;
+  const MotionDiv: any = m.div as any;
   return (
     <Card className="space-y-2">
       <div className="text-sm font-medium">ライブ字幕（原文/訳）</div>
       <div className="space-y-2">
         <AnimatePresence initial={false}>
           {rows.map((r, i) => (
-            <motion.div
+            <MotionDiv
               key={`${i}-${r.src.slice(0, 8)}-${r.tr?.slice(0, 8)}`}
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
@@ -28,7 +29,7 @@ export default function LiveBilingual({
               {r.tr && (
                 <div className={`mt-1 text-sm leading-relaxed ${r.provisional ? "text-muted-foreground" : ""}`}>{r.tr}</div>
               )}
-            </motion.div>
+            </MotionDiv>
           ))}
         </AnimatePresence>
       </div>
@@ -47,4 +48,3 @@ function pairRows(src: string[], tr: string[]) {
   }
   return rows;
 }
-

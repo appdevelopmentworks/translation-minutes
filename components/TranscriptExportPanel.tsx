@@ -41,13 +41,13 @@ export default function TranscriptExportPanel({ segments, labels }: Props) {
       const fullText = segments.map((s) => s.text).join("\n");
       const summary = await buildSummary(fullText, settings);
       const header = buildHeader({ meetingTitle: settings.meetingTitle, meetingDate: settings.meetingDate, meetingParticipants: settings.meetingParticipants });
-      const parsed = parseSummarySections(json?.output || "", settings.summaryTitles);
+      const parsed = parseSummarySections(summary || "", settings.summaryTitles);
       const md = [
         header,
         "",
         "## 要約",
         "",
-        (json?.output || "").trim(),
+        (summary || "").trim(),
         "",
         "---",
         "",
