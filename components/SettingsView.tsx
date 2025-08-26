@@ -25,7 +25,7 @@ export default function SettingsView() {
       <Card className="space-y-3">
         <div className="flex items-center gap-2">
           <Input placeholder="設定を検索…" value={q} onChange={(e) => setQ(e.target.value)} />
-          <Button onClick={onSearch}>検索</Button>
+          <Button className="whitespace-nowrap" onClick={onSearch}>検索</Button>
         </div>
         <div className="flex flex-wrap gap-2 text-xs">
           {sections.map((s) => (
@@ -46,4 +46,3 @@ export default function SettingsView() {
     </div>
   );
 }
-

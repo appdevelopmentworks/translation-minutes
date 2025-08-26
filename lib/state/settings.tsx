@@ -51,7 +51,7 @@ const DEFAULTS: Settings = {
   sttEnabled: true,
   sttForceWav: false,
   translateEnabled: true,
-  language: "ja",
+  language: "",
   targetLanguage: "en",
   liveChunkSeconds: 3,
   livePcmWavMode: true,

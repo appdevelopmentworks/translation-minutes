@@ -4,10 +4,8 @@ import Input from "@/components/ui/input";
 import Switch from "@/components/ui/switch";
 import Button from "@/components/ui/button";
 import { useSettings } from "@/lib/state/settings";
-
 export default function SettingsSheet() {
   const { settings, setSettings } = useSettings();
-
   return (
     <Card className="space-y-4">
       <div className="text-sm font-medium">設定</div>
@@ -78,56 +76,19 @@ export default function SettingsSheet() {
         <div className="grid grid-cols-2 gap-2">
           <label className="grid gap-1 text-sm">
             <span>言語ヒント</span>
-            <select
-              className="w-full rounded-md border border-input bg-background p-2 text-sm"
-              value={settings.language || ""}
+            <Input
+              placeholder="ja"
+              value={settings.language}
               onChange={(e) => setSettings({ ...settings, language: e.target.value })}
-            >
-              <option value="">自動（Auto）</option>
-              <option value="ja">日本語 (ja)</option>
-              <option value="en">英語 (en)</option>
-              <option value="zh">中国語 (zh)</option>
-              <option value="ko">韓国語 (ko)</option>
-              <option value="fr">フランス語 (fr)</option>
-              <option value="de">ドイツ語 (de)</option>
-              <option value="es">スペイン語 (es)</option>
-              <option value="pt">ポルトガル語 (pt)</option>
-              <option value="it">イタリア語 (it)</option>
-              <option value="vi">ベトナム語 (vi)</option>
-              <option value="th">タイ語 (th)</option>
-              <option value="id">インドネシア語 (id)</option>
-              <option value="ar">アラビア語 (ar)</option>
-              <option value="hi">ヒンディー語 (hi)</option>
-              <option value="ru">ロシア語 (ru)</option>
-              <option value="he">ヘブライ語 (he)</option>
-              <option value="uk">ウクライナ語 (uk)</option>
-            </select>
+            />
           </label>
           <label className="grid gap-1 text-sm">
             <span>翻訳先</span>
-            <select
-              className="w-full rounded-md border border-input bg-background p-2 text-sm"
+            <Input
+              placeholder="en"
               value={settings.targetLanguage}
               onChange={(e) => setSettings({ ...settings, targetLanguage: e.target.value })}
-            >
-              <option value="ja">日本語 (ja)</option>
-              <option value="en">英語 (en)</option>
-              <option value="zh">中国語 (zh)</option>
-              <option value="ko">韓国語 (ko)</option>
-              <option value="fr">フランス語 (fr)</option>
-              <option value="de">ドイツ語 (de)</option>
-              <option value="es">スペイン語 (es)</option>
-              <option value="pt">ポルトガル語 (pt)</option>
-              <option value="it">イタリア語 (it)</option>
-              <option value="vi">ベトナム語 (vi)</option>
-              <option value="th">タイ語 (th)</option>
-              <option value="id">インドネシア語 (id)</option>
-              <option value="ar">アラビア語 (ar)</option>
-              <option value="hi">ヒンディー語 (hi)</option>
-              <option value="ru">ロシア語 (ru)</option>
-              <option value="he">ヘブライ語 (he)</option>
-              <option value="uk">ウクライナ語 (uk)</option>
-            </select>
+            />
           </label>
         </div>
         <div className="grid gap-2">
@@ -264,21 +225,18 @@ export default function SettingsSheet() {
               <span>要約の粒度</span>
               <div className="flex gap-2">
                 <Button
-                  className="whitespace-nowrap"
                   variant={settings.summaryDetail === "concise" ? "default" : "outline"}
                   onClick={() => setSettings({ ...settings, summaryDetail: "concise" })}
                 >
                   簡潔
                 </Button>
                 <Button
-                  className="whitespace-nowrap"
                   variant={settings.summaryDetail === "standard" ? "default" : "outline"}
                   onClick={() => setSettings({ ...settings, summaryDetail: "standard" })}
                 >
                   標準
                 </Button>
                 <Button
-                  className="whitespace-nowrap"
                   variant={settings.summaryDetail === "detailed" ? "default" : "outline"}
                   onClick={() => setSettings({ ...settings, summaryDetail: "detailed" })}
                 >
@@ -372,7 +330,6 @@ export default function SettingsSheet() {
     </Card>
   );
 }
-
 function SummaryOrderEditor() {
   const { settings, setSettings } = useSettings();
   const items: Array<{ key: SettingsKey; label: string; enabled: boolean }> = [
