@@ -5,6 +5,8 @@ import { InputHTMLAttributes, useState } from "react";
 import { TranscriptSegment, Speaker, SpeakerLabels } from "@/lib/transcript/types";
 import { cn } from "@/lib/utils";
 import { useAudioPlayer } from "@/lib/state/audioPlayer";
+import { autoClusterAB } from "@/lib/processing/segment";
+import { useSettings } from "@/lib/state/settings";
 
 type Props = {
   segments: TranscriptSegment[];
@@ -17,6 +19,7 @@ export default function EditorPanel({ segments, setSegments, speakerLabels, setS
   const labelA = speakerLabels.A;
   const labelB = speakerLabels.B;
   const { seekMs, hasAudio } = useAudioPlayer();
+  const { settings } = useSettings();
 
   const setSpeaker = (id: string, speaker: Speaker) => {
     setSegments(
@@ -42,6 +45,22 @@ export default function EditorPanel({ segments, setSegments, speakerLabels, setS
     setSegments(next);
   };
 
+  const reCluster = () => {
+    const gap = settings.vadSilenceTurnMs;
+    setSegments(autoClusterAB(segments, gap));
+  };
+
+  const assignAlternating = () => {
+    let current: Speaker = "A";
+    setSegments(
+      segments.map((s) => {
+        const out = { ...s, speaker: current } as TranscriptSegment;
+        current = current === "A" ? "B" : "A";
+        return out;
+      })
+    );
+  };
+
   return (
     <Card className="space-y-3">
       <div className="flex items-center justify-between">
@@ -58,6 +77,10 @@ export default function EditorPanel({ segments, setSegments, speakerLabels, setS
             className="px-2 py-1 rounded bg-muted"
           />
         </div>
+      </div>
+      <div className="flex gap-2">
+        <Button size="sm" variant="outline" onClick={reCluster}>自動クラスタ（A/B）</Button>
+        <Button size="sm" variant="outline" onClick={assignAlternating}>A/B交互割当</Button>
       </div>
       <div className="space-y-2 max-h-[40vh] overflow-auto pr-1">
         {segments.map((s, i) => (

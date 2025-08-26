@@ -5,9 +5,10 @@ import Button from "@/components/ui/button";
 import { useSettings } from "@/lib/state/settings";
 import { STTOrchestrator } from "@/lib/stt";
 import { removeFillers, basicPunctuate } from "@/lib/processing/text";
-import { splitTextToSentences } from "@/lib/processing/segment";
+import { splitTextToSentences, autoClusterAB } from "@/lib/processing/segment";
 import type { TranscriptSegment } from "@/lib/transcript/types";
 import { encodeWavMono, downmixToMono } from "@/lib/audio/wav";
+import { useToast } from "@/lib/state/toast";
 
 type Props = {
   onAppend: (lines: string[], segments: TranscriptSegment[]) => void;
@@ -18,6 +19,7 @@ export default function FileTranscribePanel({ onAppend }: Props) {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string>("");
   const [progress, setProgress] = useState<number>(0);
+  const toast = useToast();
 
   const onFile = async (file: File) => {
     if (!settings.sttEnabled) {
@@ -32,6 +34,7 @@ export default function FileTranscribePanel({ onAppend }: Props) {
         prefer: settings.apiProvider,
         groqApiKey: settings.groqApiKey,
         openaiApiKey: settings.openaiApiKey,
+        viaProxy: settings.sttViaProxy,
       });
       let sentences: string[] = [];
       let segs: TranscriptSegment[] = [];
@@ -60,18 +63,20 @@ export default function FileTranscribePanel({ onAppend }: Props) {
               if (!text) continue;
               const startMs = (i * chunkSec * 1000) + (typeof s.start === "number" ? Math.floor(s.start * 1000) : 0);
               const endMs = (i * chunkSec * 1000) + (typeof s.end === "number" ? Math.floor(s.end * 1000) : undefined as any);
-              segs.push({ id: `${Date.now()}-${i}-${j}`, text, speaker: (segs.length % 2 ? "B" : "A"), startMs, endMs });
+              segs.push({ id: `${Date.now()}-${i}-${j}`, text, startMs, endMs });
               sentences.push(text);
             }
           } else {
             const text = basicPunctuate(removeFillers(res.text || ""));
             if (text) {
-              segs.push({ id: `${Date.now()}-${i}`, text, speaker: (segs.length % 2 ? "B" : "A"), startMs: i * chunkSec * 1000 });
+              segs.push({ id: `${Date.now()}-${i}`, text, startMs: i * chunkSec * 1000 });
               sentences.push(text);
             }
           }
           setProgress(Math.round(((i + 1) / totalChunks) * 100));
         }
+        // After building, auto-cluster by time gaps
+        segs = autoClusterAB(segs, settings.vadSilenceTurnMs);
       } else {
         const res = await stt.transcribe(file, { language: settings.language });
         const text = basicPunctuate(removeFillers(res.text || ""));
@@ -81,27 +86,31 @@ export default function FileTranscribePanel({ onAppend }: Props) {
             .map((s, i) => ({
               id: `${Date.now()}-${i}`,
               text: basicPunctuate(removeFillers(s.text)),
-              speaker: i % 2 === 0 ? "A" : "B",
               startMs: typeof s.start === "number" ? Math.max(0, Math.floor(s.start * 1000)) : i * 2000,
               endMs: typeof s.end === "number" ? Math.max(0, Math.floor(s.end * 1000)) : undefined,
             }));
           sentences = segs.map((s) => s.text);
+          segs = autoClusterAB(segs, settings.vadSilenceTurnMs);
         } else {
           sentences = splitTextToSentences(text);
           const now = Date.now();
           segs = sentences.map((t, i) => ({
             id: `${now}-${i}`,
             text: t,
-            speaker: i % 2 === 0 ? "A" : "B",
             startMs: i * 2000,
           }));
+          segs = autoClusterAB(segs, settings.vadSilenceTurnMs);
         }
         setProgress(100);
       }
       onAppend(sentences, segs);
-      setMsg(`取り込み完了: ${sentences.length} 文`);
+      const doneMsg = `取り込み完了: ${sentences.length} 文`;
+      setMsg(doneMsg);
+      toast.show(doneMsg, "success");
     } catch (e: any) {
-      setMsg(`エラー: ${e?.message || e}`);
+      const errMsg = `エラー: ${e?.message || e}`;
+      setMsg(errMsg);
+      toast.show(errMsg, "error");
     } finally {
       setBusy(false);
     }

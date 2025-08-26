@@ -7,6 +7,7 @@ export type Settings = {
   apiProvider: Provider;
   groqApiKey?: string;
   openaiApiKey?: string;
+  sttViaProxy: boolean; // STTをAPI経由でプロキシする
   sttEnabled: boolean; // ON/OFF for sending audio to API
   translateEnabled: boolean;
   language: string; // source language hint
@@ -19,6 +20,15 @@ export type Settings = {
   meetingParticipants: string; // comma-separated
   translationFormality: "formal" | "informal";
   summaryDetail: "concise" | "standard" | "detailed";
+  summaryOrder: Array<"tldr" | "decisions" | "discussion" | "risks" | "issues" | "next">;
+  summaryTitles: {
+    tldr: string;
+    decisions: string;
+    discussion: string;
+    risks: string;
+    issues: string;
+    next: string;
+  };
   summaryIncludeTLDR: boolean;
   summaryIncludeDecisions: boolean;
   summaryIncludeDiscussion: boolean;
@@ -29,10 +39,12 @@ export type Settings = {
   showLiveTimestamps: boolean;
   chunkImportEnabled: boolean;
   chunkSeconds: number;
+  wakeLockEnabled: boolean;
 };
 
 const DEFAULTS: Settings = {
   apiProvider: "groq",
+  sttViaProxy: (typeof process !== "undefined" ? (process as any).env?.NEXT_PUBLIC_STT_VIA_PROXY : undefined) === "1",
   sttEnabled: true,
   translateEnabled: true,
   language: "ja",
@@ -45,6 +57,15 @@ const DEFAULTS: Settings = {
   meetingParticipants: "",
   translationFormality: "formal",
   summaryDetail: "standard",
+  summaryOrder: ["tldr", "decisions", "discussion", "risks", "issues", "next"],
+  summaryTitles: {
+    tldr: "概要",
+    decisions: "決定事項",
+    discussion: "論点と結論",
+    risks: "リスク",
+    issues: "課題",
+    next: "次アクション（担当/期限）",
+  },
   summaryIncludeTLDR: true,
   summaryIncludeDecisions: true,
   summaryIncludeDiscussion: true,
@@ -55,6 +76,7 @@ const DEFAULTS: Settings = {
   showLiveTimestamps: true,
   chunkImportEnabled: true,
   chunkSeconds: 15,
+  wakeLockEnabled: true,
 };
 
 const KEY = "tm_settings_v1";

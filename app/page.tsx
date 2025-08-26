@@ -1,8 +1,7 @@
 "use client";
 import { useState } from "react";
 import RecorderControls from "@/components/RecorderControls";
-import LiveTranscript from "@/components/LiveTranscript";
-import LiveTranslation from "@/components/LiveTranslation";
+import LiveBilingual from "@/components/LiveBilingual";
 import SummaryPanel from "@/components/SummaryPanel";
 import TranslationPanel from "@/components/TranslationPanel";
 import SettingsSheet from "@/components/SettingsSheet";
@@ -22,6 +21,8 @@ import { AudioPlayerProvider } from "@/lib/state/audioPlayer";
 import AppBar from "@/components/AppBar";
 import BottomNav from "@/components/BottomNav";
 import { AnimatePresence, motion } from "framer-motion";
+import { useWakeLock } from "@/lib/state/wakelock";
+import { ToastProvider, useToast } from "@/lib/state/toast";
 
 type Tab = "record" | "edit" | "export" | "settings";
 
@@ -43,6 +44,7 @@ function PageInner({
   const { settings, setSettings } = useSettings();
   const [tab, setTab] = useHashTab();
   const [isRecording, setIsRecording] = useState(false);
+  useWakeLock(isRecording && settings.wakeLockEnabled);
   const record = (
     <>
       <FileTranscribePanel
@@ -61,8 +63,7 @@ function PageInner({
         onTranslate={(t) => setTranslated((prev: string[]) => (t ? [...prev, t] : prev))}
         onRecordingChange={setIsRecording}
       />
-      <LiveTranscript segments={segments} />
-      <LiveTranslation lines={translated} />
+      <LiveBilingual source={lines} translated={translated} />
       <AudioPlayerPanel />
     </>
   );
@@ -144,6 +145,7 @@ export default function Page() {
     <SettingsProvider>
       <DictionaryProvider>
         <AudioPlayerProvider>
+          <ToastProvider>
           <PageInner
             lines={lines}
             setLines={setLines}
@@ -154,6 +156,7 @@ export default function Page() {
             speakerLabels={speakerLabels}
             setSpeakerLabels={setSpeakerLabels}
           />
+          </ToastProvider>
         </AudioPlayerProvider>
       </DictionaryProvider>
     </SettingsProvider>

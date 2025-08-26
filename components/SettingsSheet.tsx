@@ -48,6 +48,13 @@ export default function SettingsSheet() {
           />
         </label>
         <div className="flex items-center justify-between">
+          <div className="text-sm">STTをプロキシ経由にする（CORS対策）</div>
+          <Switch
+            checked={settings.sttViaProxy}
+            onCheckedChange={(v) => setSettings({ ...settings, sttViaProxy: v })}
+          />
+        </div>
+        <div className="flex items-center justify-between">
           <div className="text-sm">STT送信（ON/OFF）</div>
           <Switch
             checked={settings.sttEnabled}
@@ -157,6 +164,13 @@ export default function SettingsSheet() {
                 max={120}
               />
             </label>
+            <label className="grid gap-1 text-sm">
+              <span>録音中は画面をスリープさせない</span>
+              <Switch
+                checked={settings.wakeLockEnabled}
+                onCheckedChange={(v) => setSettings({ ...settings, wakeLockEnabled: v })}
+              />
+            </label>
           </div>
         </div>
         <div className="grid gap-2">
@@ -244,8 +258,86 @@ export default function SettingsSheet() {
               <span>次アクション（担当/期限）</span>
             </label>
           </div>
+          <div className="grid gap-2 text-sm">
+            <div className="font-medium">要約の見出し名（##）</div>
+            <div className="grid sm:grid-cols-3 gap-2">
+              <label className="grid gap-1">
+                <span>TL;DR</span>
+                <Input value={settings.summaryTitles.tldr}
+                  onChange={(e) => setSettings({ ...settings, summaryTitles: { ...settings.summaryTitles, tldr: e.target.value } })} />
+              </label>
+              <label className="grid gap-1">
+                <span>決定事項</span>
+                <Input value={settings.summaryTitles.decisions}
+                  onChange={(e) => setSettings({ ...settings, summaryTitles: { ...settings.summaryTitles, decisions: e.target.value } })} />
+              </label>
+              <label className="grid gap-1">
+                <span>論点と結論</span>
+                <Input value={settings.summaryTitles.discussion}
+                  onChange={(e) => setSettings({ ...settings, summaryTitles: { ...settings.summaryTitles, discussion: e.target.value } })} />
+              </label>
+              <label className="grid gap-1">
+                <span>リスク</span>
+                <Input value={settings.summaryTitles.risks}
+                  onChange={(e) => setSettings({ ...settings, summaryTitles: { ...settings.summaryTitles, risks: e.target.value } })} />
+              </label>
+              <label className="grid gap-1">
+                <span>課題</span>
+                <Input value={settings.summaryTitles.issues}
+                  onChange={(e) => setSettings({ ...settings, summaryTitles: { ...settings.summaryTitles, issues: e.target.value } })} />
+              </label>
+              <label className="grid gap-1">
+                <span>次アクション</span>
+                <Input value={settings.summaryTitles.next}
+                  onChange={(e) => setSettings({ ...settings, summaryTitles: { ...settings.summaryTitles, next: e.target.value } })} />
+              </label>
+            </div>
+          </div>
+          <div className="grid gap-2 text-sm">
+            <div className="font-medium">要約項目の順序</div>
+            <SummaryOrderEditor />
+          </div>
         </div>
       </div>
     </Card>
+  );
+}
+
+function SummaryOrderEditor() {
+  const { settings, setSettings } = useSettings();
+  const items: Array<{ key: SettingsKey; label: string; enabled: boolean }> = [
+    { key: "tldr", label: "TL;DR", enabled: settings.summaryIncludeTLDR },
+    { key: "decisions", label: "決定事項", enabled: settings.summaryIncludeDecisions },
+    { key: "discussion", label: "論点と結論", enabled: settings.summaryIncludeDiscussion },
+    { key: "risks", label: "リスク", enabled: settings.summaryIncludeRisks },
+    { key: "issues", label: "課題", enabled: settings.summaryIncludeIssues },
+    { key: "next", label: "次アクション（担当/期限）", enabled: settings.summaryIncludeNextActions },
+  ];
+  type SettingsKey = typeof settings.summaryOrder[number];
+  const order = settings.summaryOrder;
+  const move = (k: SettingsKey, dir: -1 | 1) => {
+    const idx = order.indexOf(k);
+    if (idx < 0) return;
+    const j = idx + dir;
+    if (j < 0 || j >= order.length) return;
+    const next = [...order];
+    [next[idx], next[j]] = [next[j], next[idx]];
+    setSettings({ ...settings, summaryOrder: next });
+  };
+  return (
+    <div className="rounded border border-border">
+      {order.map((k) => {
+        const meta = items.find((i) => i.key === k)!;
+        return (
+          <div key={k} className="flex items-center justify-between px-2 py-1 border-b last:border-b-0">
+            <div className={`truncate ${meta.enabled ? '' : 'text-muted-foreground line-through'}`}>{meta.label}</div>
+            <div className="flex gap-1">
+              <Button size="sm" variant="outline" onClick={() => move(k, -1)}>↑</Button>
+              <Button size="sm" variant="outline" onClick={() => move(k, 1)}>↓</Button>
+            </div>
+          </div>
+        );
+      })}
+    </div>
   );
 }

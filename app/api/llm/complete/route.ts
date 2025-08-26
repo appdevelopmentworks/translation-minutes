@@ -13,6 +13,8 @@ type Payload = {
   options?: {
     translationFormality?: "formal" | "informal";
     summaryDetail?: "concise" | "standard" | "detailed";
+    summaryOrder?: Array<"tldr" | "decisions" | "discussion" | "risks" | "issues" | "next">;
+    summaryTitles?: { tldr: string; decisions: string; discussion: string; risks: string; issues: string; next: string };
     includeTLDR?: boolean;
     includeDecisions?: boolean;
     includeDiscussion?: boolean;
@@ -82,11 +84,14 @@ function buildSystemPrompt(
 ) {
   if (task === "summary") {
     const detail = options?.summaryDetail ?? "standard";
-    const tldr = options?.includeTLDR ?? true;
-    const detailHint =
-      detail === "concise" ? "可能な限り簡潔に" : detail === "detailed" ? "必要に応じて詳細も" : "適度な粒度で";
-    const tldrHint = tldr ? "最初に1-2行のTL;DRを含め、" : "";
-    return `あなたは会議議事録の要約アシスタントです。${tldrHint}決定事項/論点/結論/次アクション/期限/担当を日本語で${detailHint}Markdownで出力してください。不要な冗長表現は避け、箇条書きを用い、事実のみを要約します。`;
+    const detailHint = detail === "concise" ? "可能な限り簡潔に" : detail === "detailed" ? "必要に応じて詳細も" : "適度な粒度で";
+    return [
+      "あなたは会議議事録の要約アシスタントです。",
+      `${detailHint}日本語のMarkdownで出力し、各項目は必ず見出し（##）を用いて区切ってください。`,
+      "各項目では箇条書き（-）を用い、冗長表現は避け、事実ベースで簡潔に記述してください。",
+      "次アクションには可能な限り担当者と期限を含めてください。",
+      "出力は指定された見出しのみを含め、余計な前置きや後書きは不要です。",
+    ].join(" ");
   }
   // translate
   const srcL = src || "auto";
@@ -104,18 +109,37 @@ function buildUserPrompt(
 ) {
   if (task === "summary") {
     const o = options || {};
-    const items: string[] = [];
-    if (o.includeTLDR !== false) items.push("- 概要(TL;DR)");
-    if (o.includeDecisions !== false) items.push("- 決定事項");
-    if (o.includeDiscussion !== false) items.push("- 論点と結論");
-    if (o.includeRisks) items.push("- リスク");
-    if (o.includeIssues) items.push("- 課題");
-    if (o.includeNextActions !== false) items.push("- 次アクション（担当/期限）");
+    const titles = o.summaryTitles || {
+      tldr: "概要",
+      decisions: "決定事項",
+      discussion: "論点と結論",
+      risks: "リスク",
+      issues: "課題",
+      next: "次アクション（担当/期限）",
+    };
+    const order = o.summaryOrder && Array.isArray(o.summaryOrder) && o.summaryOrder.length
+      ? o.summaryOrder
+      : ["tldr", "decisions", "discussion", "risks", "issues", "next"];
+    const map: Record<string, { title: string; enabled: boolean } > = {
+      tldr: { title: `## ${titles.tldr}`, enabled: o.includeTLDR !== false },
+      decisions: { title: `## ${titles.decisions}`, enabled: o.includeDecisions !== false },
+      discussion: { title: `## ${titles.discussion}`, enabled: o.includeDiscussion !== false },
+      risks: { title: `## ${titles.risks}`, enabled: !!o.includeRisks },
+      issues: { title: `## ${titles.issues}`, enabled: !!o.includeIssues },
+      next: { title: `## ${titles.next}`, enabled: o.includeNextActions !== false },
+    };
+    const headings = order.filter((k) => map[k]?.enabled).map((k) => map[k].title);
     const lines = [
-      "以下の会議テキストを要約し、Markdownで出力してください。",
+      "以下の会議テキストを要約してください。",
       "",
-      "# 出力要件",
-      ...items,
+      "# 出力フォーマット要件",
+      "次の順序・見出し（##）を正確に使ってMarkdownで出力してください。",
+      ...headings,
+      "",
+      "# 注意",
+      "- 各項目は箇条書きのみ",
+      "- 可能な限り固有名詞・数値・担当・期限を保持",
+      "- 余計な文章や前置きは不要",
       "",
       "# 入力",
       text,

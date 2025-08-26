@@ -32,7 +32,8 @@
 ## ネットワーク方針
 - 設定でSTT送信ON/OFF。OFF時は録音のみ（後処理はローカル）
 - Groq失敗時はOpenAIへフォールバック
-- 備考: CORS制約がある場合はNext.jsのRoute Handlerで薄いプロキシを用意（キーは保存せず転送のみ）。
+- CORS制約がある場合、`/api/stt/transcribe` の薄いプロキシを使用（キーは保存せず転送のみ）。
+  - クライアント側は `NEXT_PUBLIC_STT_VIA_PROXY=1` で有効化可能。
  
 ## LLM（要約/翻訳）
 - エンドポイント: `app/api/llm/complete`（POST）
