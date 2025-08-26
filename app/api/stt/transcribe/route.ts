@@ -33,7 +33,9 @@ export async function POST(req: NextRequest) {
 
     // Rebuild provider form to avoid leaking extra keys
     const providerForm = new FormData();
-    providerForm.append("file", file, (file as any).name || `chunk-${Date.now()}.webm`);
+    // Ensure filename extension matches mime for better provider compatibility
+    const name = (file as any).name || suggestName((file as any).type || "");
+    providerForm.append("file", file, name);
     providerForm.append("model", model);
     if (cfg.verbose) providerForm.append("response_format", "verbose_json");
     if (language) providerForm.append("language", language);
@@ -62,7 +64,16 @@ export async function POST(req: NextRequest) {
   }
 }
 
+function suggestName(mime: string) {
+  const ts = Date.now();
+  if (mime.includes("webm")) return `chunk-${ts}.webm`;
+  if (mime.includes("ogg")) return `chunk-${ts}.ogg`;
+  if (mime.includes("mp4")) return `chunk-${ts}.m4a`;
+  if (mime.includes("mpeg")) return `chunk-${ts}.mp3`;
+  if (mime.includes("wav")) return `chunk-${ts}.wav`;
+  return `chunk-${ts}.webm`;
+}
+
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-

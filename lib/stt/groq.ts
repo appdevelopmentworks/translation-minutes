@@ -16,7 +16,7 @@ export class GroqSTT implements STTClient {
 
   async transcribeBlob(blob: Blob, opts: TranscriptionOptions = {}): Promise<TranscriptionResult> {
     const form = new FormData();
-    form.append("file", blob, `chunk-${Date.now()}.webm`);
+    form.append("file", blob, makeFilename(blob.type));
     form.append("model", this.model);
     // Prefer structured response if provider supports it
     form.append("response_format", "verbose_json");
@@ -43,4 +43,14 @@ export class GroqSTT implements STTClient {
       : [{ text }];
     return { text, segments };
   }
+}
+
+function makeFilename(mime: string) {
+  const ts = Date.now();
+  if (mime.includes("webm")) return `chunk-${ts}.webm`;
+  if (mime.includes("ogg")) return `chunk-${ts}.ogg`;
+  if (mime.includes("mp4")) return `chunk-${ts}.m4a`;
+  if (mime.includes("mpeg")) return `chunk-${ts}.mp3`;
+  if (mime.includes("wav")) return `chunk-${ts}.wav`;
+  return `chunk-${ts}.webm`;
 }

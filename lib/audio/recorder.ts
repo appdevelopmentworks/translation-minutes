@@ -73,6 +73,8 @@ function getPreferredMimeType() {
   const candidates = [
     "audio/webm;codecs=opus",
     "audio/ogg;codecs=opus",
+    "audio/mp4",
+    "audio/mpeg",
     "audio/webm",
   ];
   for (const c of candidates) if (MediaRecorder.isTypeSupported(c)) return c;

@@ -14,7 +14,7 @@ export class OpenAIWhisper implements STTClient {
 
   async transcribeBlob(blob: Blob, opts: TranscriptionOptions = {}): Promise<TranscriptionResult> {
     const form = new FormData();
-    form.append("file", blob, `chunk-${Date.now()}.webm`);
+    form.append("file", blob, makeFilename(blob.type));
     form.append("model", this.model);
     if (opts.language) form.append("language", opts.language);
     if (opts.prompt) form.append("prompt", opts.prompt);
@@ -34,3 +34,12 @@ export class OpenAIWhisper implements STTClient {
   }
 }
 
+function makeFilename(mime: string) {
+  const ts = Date.now();
+  if (mime.includes("webm")) return `chunk-${ts}.webm`;
+  if (mime.includes("ogg")) return `chunk-${ts}.ogg`;
+  if (mime.includes("mp4")) return `chunk-${ts}.m4a`;
+  if (mime.includes("mpeg")) return `chunk-${ts}.mp3`;
+  if (mime.includes("wav")) return `chunk-${ts}.wav`;
+  return `chunk-${ts}.webm`;
+}
