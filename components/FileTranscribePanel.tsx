@@ -51,7 +51,9 @@ export default function FileTranscribePanel({ onAppend }: Props) {
         const chunkSec = Math.max(5, Math.min(120, settings.chunkSeconds));
         const samplesPerChunk = Math.floor(sr * chunkSec);
         const totalChunks = Math.ceil(mono.length / samplesPerChunk);
-        for (let i = 0; i < totalChunks; i++) {
+        const concurrency = 2;
+        let completed = 0;
+        async function processIndex(i: number) {
           const start = i * samplesPerChunk;
           const end = Math.min(mono.length, start + samplesPerChunk);
           const slice = mono.subarray(start, end);
@@ -73,8 +75,21 @@ export default function FileTranscribePanel({ onAppend }: Props) {
               sentences.push(text);
             }
           }
-          setProgress(Math.round(((i + 1) / totalChunks) * 100));
+          completed++;
+          setProgress(Math.round((completed / totalChunks) * 100));
         }
+        const indices = Array.from({ length: totalChunks }, (_, i) => i);
+        let ptr = 0;
+        const workers: Promise<void>[] = [];
+        for (let k = 0; k < Math.min(concurrency, indices.length); k++) {
+          workers.push((async function run() {
+            while (ptr < indices.length) {
+              const i = ptr++;
+              await processIndex(i);
+            }
+          })());
+        }
+        await Promise.all(workers);
         // After building, auto-cluster by time gaps
         segs = autoClusterAB(segs, settings.vadSilenceTurnMs);
       } else {

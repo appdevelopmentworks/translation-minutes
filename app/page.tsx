@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { flushSync } from "react-dom";
 import RecorderControls from "@/components/RecorderControls";
 import LiveBilingual from "@/components/LiveBilingual";
 import SummaryPanel from "@/components/SummaryPanel";
@@ -44,6 +45,7 @@ function PageInner({
   const { settings, setSettings } = useSettings();
   const [tab, setTab] = useHashTab();
   const [isRecording, setIsRecording] = useState(false);
+  const [liveTick, setLiveTick] = useState(0);
   useWakeLock(isRecording && settings.wakeLockEnabled);
   const record = (
     <>
@@ -58,12 +60,27 @@ function PageInner({
         <span className="text-muted-foreground">{isRecording ? "録音中" : "停止中"}</span>
       </div>
       <RecorderControls
-        onTranscript={(t) => setLines((prev: string[]) => (t ? [...prev, t] : prev))}
-        onSegment={(seg) => setSegments((prev: TranscriptSegment[]) => [...prev, seg])}
-        onTranslate={(t) => setTranslated((prev: string[]) => (t ? [...prev, t] : prev))}
-        onRecordingChange={setIsRecording}
+        onTranscript={(t) =>
+          flushSync(() => {
+            if (t) setLines((prev: string[]) => [...prev, t]);
+            setLiveTick((n) => n + 1);
+          })
+        }
+        onSegment={(seg) =>
+          flushSync(() => {
+            setSegments((prev: TranscriptSegment[]) => [...prev, seg]);
+            setLiveTick((n) => n + 1);
+          })
+        }
+        onTranslate={(t) =>
+          flushSync(() => {
+            if (t) setTranslated((prev: string[]) => [...prev, t]);
+            setLiveTick((n) => n + 1);
+          })
+        }
+        onRecordingChange={(v) => flushSync(() => setIsRecording(v))}
       />
-      <LiveBilingual source={lines} translated={translated} />
+      <LiveBilingual key={`live-${liveTick}`} source={lines} translated={translated} />
       <AudioPlayerPanel />
     </>
   );

@@ -47,3 +47,30 @@ export function downmixToMono(buffers: Float32Array[]): Float32Array {
   return out;
 }
 
+export async function blobToWavMono(blob: Blob): Promise<Blob> {
+  const ab = await blob.arrayBuffer();
+  const AC: any = (window as any).AudioContext || (window as any).webkitAudioContext;
+  const ctx = new AC();
+  try {
+    const audioBuf: AudioBuffer = await new Promise((resolve, reject) => {
+      // Safari互換: コールバック形式も許容
+      try {
+        (ctx as any).decodeAudioData(
+          ab.slice(0),
+          (buf: AudioBuffer) => resolve(buf),
+          (err: any) => reject(err)
+        );
+      } catch (e) {
+        reject(e);
+      }
+    });
+    const chs = audioBuf.numberOfChannels || 1;
+    const buffers: Float32Array[] = [];
+    for (let ch = 0; ch < chs; ch++) buffers.push(audioBuf.getChannelData(Math.min(ch, audioBuf.numberOfChannels - 1)));
+    const mono = downmixToMono(buffers);
+    const wav = encodeWavMono(mono, audioBuf.sampleRate || 48000);
+    return wav;
+  } finally {
+    try { await ctx.close(); } catch {}
+  }
+}

@@ -12,6 +12,7 @@ import { WorkletVAD } from "@/lib/audio/vadWorklet";
 import { useDictionary } from "@/lib/state/dictionary";
 import { applyMappings } from "@/lib/dictionary/mapping";
 import { useToast } from "@/lib/state/toast";
+import { startPCMChunker } from "@/lib/audio/pcm";
 
 type Props = {
   onTranscript: (text: string) => void;
@@ -90,80 +91,136 @@ export default function RecorderControls({ onTranscript, onSegment, onTranslate,
   }
 
   const sttQueueRef = useRef<Blob[]>([]);
-  const sttBusyRef = useRef<boolean>(false);
+  const sttActiveRef = useRef<number>(0);
+  const STT_MAX_PARALLEL = 2;
+  const recordingActiveRef = useRef<boolean>(false);
 
-  const processSttQueue = useCallback(async () => {
-    if (sttBusyRef.current) return;
+  const processSttQueue = useCallback(() => {
     if (!settings.sttEnabled) {
       sttQueueRef.current = [];
       return;
     }
-    const blob = sttQueueRef.current.shift();
-    if (!blob) return;
-    sttBusyRef.current = true;
-    setPending(true);
-    try {
-      const stt = new STTOrchestrator({
-        prefer: settings.apiProvider,
-        groqApiKey: settings.groqApiKey,
-        openaiApiKey: settings.openaiApiKey,
-        viaProxy: settings.sttViaProxy,
-      });
-      const res = await stt.transcribe(blob, { language: settings.language });
-      const now = Date.now();
-      const sessionStart = startTime.current ?? now;
-      if (startTime.current === null) startTime.current = now;
-      if (Array.isArray(res.segments) && res.segments.length > 0) {
-        for (const s of res.segments) {
-          const piece = basicPunctuate(removeFillers(s.text || ""));
-          if (!piece) continue;
-          onTranscript(piece);
-          const spk = lastSpeaker.current;
-          const startMs = typeof s.start === "number" ? Math.max(0, Math.floor(s.start * 1000)) : (Date.now() - sessionStart);
-          const endMs = typeof s.end === "number" ? Math.max(0, Math.floor(s.end * 1000)) : undefined;
-          onSegment?.({ id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, text: piece, speaker: spk, startMs, endMs });
+    // spawn workers up to max parallel
+    while (sttActiveRef.current < STT_MAX_PARALLEL && sttQueueRef.current.length > 0) {
+      const blob = sttQueueRef.current.shift()!;
+      sttActiveRef.current++;
+      setPending(true);
+      (async () => {
+        try {
+          const stt = new STTOrchestrator({
+            prefer: settings.apiProvider,
+            groqApiKey: settings.groqApiKey,
+            openaiApiKey: settings.openaiApiKey,
+            viaProxy: settings.sttViaProxy,
+          });
+          let toSend = blob;
+          if (settings.sttForceWav) {
+            try {
+              const wav = await (await import("@/lib/audio/wav")).blobToWavMono(blob);
+              toSend = wav;
+            } catch (e) {
+              console.warn("WAV変換に失敗しました。元データを送信します", e);
+            }
+          }
+          // Do not proceed if recording has been stopped
+          if (!recordingActiveRef.current) return;
+          const res = await stt.transcribe(toSend, { language: settings.language });
+          if (!recordingActiveRef.current) return;
+          const now = Date.now();
+          const sessionStart = startTime.current ?? now;
+          if (startTime.current === null) startTime.current = now;
+          if (Array.isArray(res.segments) && res.segments.length > 0) {
+            for (const s of res.segments) {
+              const piece = basicPunctuate(removeFillers(s.text || ""));
+              if (!piece) continue;
+              if (!recordingActiveRef.current) break;
+              onTranscript(piece);
+              const spk = lastSpeaker.current;
+              const startMs = typeof s.start === "number" ? Math.max(0, Math.floor(s.start * 1000)) : (Date.now() - sessionStart);
+              const endMs = typeof s.end === "number" ? Math.max(0, Math.floor(s.end * 1000)) : undefined;
+              onSegment?.({ id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, text: piece, speaker: spk, startMs, endMs });
+            }
+          } else {
+            const cleaned = basicPunctuate(removeFillers(res.text || ""));
+            if (cleaned) {
+              if (!recordingActiveRef.current) return;
+              onTranscript(cleaned);
+              const spk = lastSpeaker.current;
+              onSegment?.({ id: `${now}`, text: cleaned, speaker: spk, startMs: now - sessionStart });
+            }
+          }
+          if (settings.translateEnabled && onTranslate) {
+            const joined = Array.isArray(res.segments) && res.segments.length > 0 ? res.segments.map((s) => s.text).join(" ") : (res.text || "");
+            const baseText = basicPunctuate(removeFillers(joined));
+            if (baseText) {
+              const t = settings.translateUseDictionary && mappings?.length ? applyMappings(baseText, mappings) : baseText;
+              if (recordingActiveRef.current) enqueueTranslation(t);
+            }
+          }
+        } catch (e: any) {
+          console.error(e);
+          toast.show(`STTエラー: ${e?.message || e}`, "error");
+        } finally {
+          sttActiveRef.current--;
+          if (sttActiveRef.current <= 0 && sttQueueRef.current.length === 0) setPending(false);
+          // try to start next if pending
+          if (sttQueueRef.current.length > 0) processSttQueue();
         }
-      } else {
-        const cleaned = basicPunctuate(removeFillers(res.text || ""));
-        if (cleaned) {
-          onTranscript(cleaned);
-          const spk = lastSpeaker.current;
-          onSegment?.({ id: `${now}`, text: cleaned, speaker: spk, startMs: now - sessionStart });
-        }
-      }
-      // 逐次翻訳（設定が有効な場合）
-      if (settings.translateEnabled && onTranslate) {
-        const joined = Array.isArray(res.segments) && res.segments.length > 0 ? res.segments.map((s) => s.text).join(" ") : (res.text || "");
-        const baseText = basicPunctuate(removeFillers(joined));
-        if (baseText) {
-          const t = settings.translateUseDictionary && mappings?.length ? applyMappings(baseText, mappings) : baseText;
-          enqueueTranslation(t);
-        }
-      }
-    } catch (e: any) {
-      console.error(e);
-      toast.show(`STTエラー: ${e?.message || e}`, "error");
-    } finally {
-      sttBusyRef.current = false;
-      setPending(false);
-      // 次のキューがあれば続けて処理
-      if (sttQueueRef.current.length > 0) processSttQueue();
+      })();
     }
   }, [settings, onTranscript]);
 
+  const aggPartsRef = useRef<Blob[]>([]);
+  const aggBytesRef = useRef<number>(0);
+  const aggTypeRef = useRef<string>("");
+  const aggTimerRef = useRef<number | null>(null);
+  const MIN_SEND_BYTES = 4096; // 4KB 目安（早めに送る）
+  const MAX_WAIT_MS = 300; // 最大待機を短縮（リアルタイム性重視）
+
+  const flushAggregate = useCallback(() => {
+    if (aggPartsRef.current.length === 0) return;
+    const type = aggTypeRef.current || "audio/webm";
+    const merged = new Blob(aggPartsRef.current, { type });
+    aggPartsRef.current = [];
+    aggBytesRef.current = 0;
+    aggTypeRef.current = "";
+    if (aggTimerRef.current) {
+      clearTimeout(aggTimerRef.current);
+      aggTimerRef.current = null;
+    }
+    // 最新優先で最大6件まで保持（古いものは間引き）
+    sttQueueRef.current.push(merged);
+    if (sttQueueRef.current.length > 6) sttQueueRef.current.splice(0, sttQueueRef.current.length - 6);
+    processSttQueue();
+  }, [processSttQueue]);
+
   const onChunk = useCallback((blob: Blob) => {
     if (!settings.sttEnabled) return;
-    // 最新優先で2件まで保持（古いものは間引き）
+    if (!blob || blob.size === 0) return;
+    // 小さなチャンクは一旦合成してから送る
+    if (blob.size < MIN_SEND_BYTES) {
+      aggPartsRef.current.push(blob);
+      aggBytesRef.current += blob.size;
+      aggTypeRef.current = blob.type || aggTypeRef.current;
+      if (!aggTimerRef.current) {
+        aggTimerRef.current = window.setTimeout(() => {
+          flushAggregate();
+        }, MAX_WAIT_MS) as unknown as number;
+      }
+      if (aggBytesRef.current >= MIN_SEND_BYTES) flushAggregate();
+      return;
+    }
+    // 十分なサイズなら即送信
     sttQueueRef.current.push(blob);
-    if (sttQueueRef.current.length > 2) sttQueueRef.current.splice(0, sttQueueRef.current.length - 2);
+    if (sttQueueRef.current.length > 6) sttQueueRef.current.splice(0, sttQueueRef.current.length - 6);
     processSttQueue();
-  }, [settings.sttEnabled, processSttQueue]);
+  }, [settings.sttEnabled, processSttQueue, flushAggregate]);
 
   const start = async () => {
     const rec = new AudioRecorder(
-      { source, timesliceMs: 1000, deviceId },
+      { source, timesliceMs: Math.max(500, Math.min(5000, Math.round(settings.liveChunkSeconds * 1000))), deviceId },
       {
-        onChunk,
+        onChunk: settings.livePcmWavMode ? undefined : onChunk,
         onMedia: (stream) => {
           // Start VAD on the same stream
           vadRef.current?.stop();
@@ -228,6 +285,19 @@ export default function RecorderControls({ onTranscript, onSegment, onTranslate,
               };
               meter.current = { ctx, src, proc };
             } catch {}
+            // PCM→WAV ライブモード
+            if (settings.livePcmWavMode) {
+              try {
+                const pcm = await startPCMChunker(stream, {
+                  chunkMs: Math.max(500, Math.min(5000, Math.round(settings.liveChunkSeconds * 1000))),
+                  onChunk: (b) => onChunk(b),
+                });
+                (vadRef.current as any).pcm = pcm;
+              } catch (e) {
+                console.error("PCM chunker start failed", e);
+                toast.show("PCMモード開始に失敗しました", "error");
+              }
+            }
           })();
         },
       }
@@ -236,18 +306,32 @@ export default function RecorderControls({ onTranscript, onSegment, onTranslate,
     await rec.start();
     startTime.current = null;
     setRecording(true);
+    recordingActiveRef.current = true;
     onRecordingChange?.(true);
   };
 
   const stop = () => {
     recRef.current?.stop();
     vadRef.current?.stop();
+    try { (vadRef.current as any)?.pcm?.stop?.(); } catch {}
+    // 残った小チャンクは破棄（誤検出抑止）
+    try {
+      aggPartsRef.current = [];
+      aggBytesRef.current = 0;
+      aggTypeRef.current = "";
+      if (aggTimerRef.current) { clearTimeout(aggTimerRef.current); aggTimerRef.current = null; }
+    } catch {}
+    // STT/翻訳キューも破棄
+    sttQueueRef.current = [];
+    translateQueueRef.current = [];
     try {
       meter.current?.proc?.disconnect();
       meter.current?.src?.disconnect();
       meter.current?.ctx?.close();
     } catch {}
     setRecording(false);
+    recordingActiveRef.current = false;
+    setPending(false);
     onRecordingChange?.(false);
   };
 

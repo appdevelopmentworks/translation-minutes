@@ -33,3 +33,36 @@ export function autoClusterAB<Seg extends { startMs?: number; endMs?: number; sp
     return { ...s, speaker: (s.speaker as AB) ?? cur };
   });
 }
+
+// Merge consecutive segments into sentence-like units using punctuation and gap heuristics
+export function mergeSegmentsBySentence<Seg extends { id: string; text: string; speaker?: AB; startMs?: number; endMs?: number }>(
+  segments: Seg[],
+  opts: { maxGapMs?: number; minChars?: number } = {}
+): Seg[] {
+  const maxGap = opts.maxGapMs ?? 800; // merge if within this gap
+  const minChars = opts.minChars ?? 20; // ensure minimum size
+  const out: Seg[] = [];
+  let acc: Seg | null = null;
+  const isSentenceEnd = (t: string) => /[。．！？!?\.]['””』"]?$/.test(t.trim());
+  for (const s of segments) {
+    if (!acc) {
+      acc = { ...s };
+      continue;
+    }
+    const sameSpeaker = !s.speaker || !acc.speaker || s.speaker === acc.speaker;
+    const gap = typeof s.startMs === "number" && typeof acc.endMs === "number" ? s.startMs - acc.endMs : 0;
+    const canMerge = sameSpeaker && (gap <= maxGap || !isSentenceEnd(acc.text) || (acc.text + s.text).length < minChars);
+    if (canMerge) {
+      acc = {
+        ...acc,
+        text: `${acc.text} ${s.text}`.replace(/\s+/g, " ").trim(),
+        endMs: s.endMs ?? acc.endMs,
+      };
+    } else {
+      out.push(acc);
+      acc = { ...s };
+    }
+  }
+  if (acc) out.push(acc);
+  return out;
+}

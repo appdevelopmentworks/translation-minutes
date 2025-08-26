@@ -5,7 +5,7 @@ import { InputHTMLAttributes, useState } from "react";
 import { TranscriptSegment, Speaker, SpeakerLabels } from "@/lib/transcript/types";
 import { cn } from "@/lib/utils";
 import { useAudioPlayer } from "@/lib/state/audioPlayer";
-import { autoClusterAB } from "@/lib/processing/segment";
+import { autoClusterAB, mergeSegmentsBySentence } from "@/lib/processing/segment";
 import { useSettings } from "@/lib/state/settings";
 
 type Props = {
@@ -61,6 +61,11 @@ export default function EditorPanel({ segments, setSegments, speakerLabels, setS
     );
   };
 
+  const autoMergeSentences = () => {
+    const gap = Math.max(400, Math.min(2000, settings.vadSilenceTurnMs));
+    setSegments(mergeSegmentsBySentence(segments, { maxGapMs: gap, minChars: 25 }));
+  };
+
   return (
     <Card className="space-y-3">
       <div className="flex items-center justify-between">
@@ -81,6 +86,7 @@ export default function EditorPanel({ segments, setSegments, speakerLabels, setS
       <div className="flex gap-2">
         <Button size="sm" variant="outline" onClick={reCluster}>自動クラスタ（A/B）</Button>
         <Button size="sm" variant="outline" onClick={assignAlternating}>A/B交互割当</Button>
+        <Button size="sm" onClick={autoMergeSentences}>自動結合（文単位）</Button>
       </div>
       <div className="space-y-2 max-h-[40vh] overflow-auto pr-1">
         {segments.map((s, i) => (

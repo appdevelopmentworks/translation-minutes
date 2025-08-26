@@ -49,7 +49,9 @@ export class AudioRecorder {
       if (!stream) throw new Error("Media stream not available");
       this.handlers.onMedia?.(stream);
       const mimeType = getPreferredMimeType();
-      this.recorder = new MediaRecorder(stream, { mimeType });
+      // Ensure audio-only is recorded even if the source includes video tracks (tab capture)
+      const recordStream = new MediaStream(stream.getAudioTracks());
+      this.recorder = new MediaRecorder(recordStream, { mimeType });
       this.recorder.ondataavailable = (e) => {
         if (e.data && e.data.size > 0) this.handlers.onChunk?.(e.data);
       };

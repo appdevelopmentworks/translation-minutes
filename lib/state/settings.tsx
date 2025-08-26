@@ -8,10 +8,13 @@ export type Settings = {
   groqApiKey?: string;
   openaiApiKey?: string;
   sttViaProxy: boolean; // STTをAPI経由でプロキシする
+  sttForceWav: boolean; // 互換性優先で常時WAVに変換
   sttEnabled: boolean; // ON/OFF for sending audio to API
   translateEnabled: boolean;
   language: string; // source language hint
   targetLanguage: string; // translation target
+  liveChunkSeconds: number; // ライブ録音のチャンク秒数
+  livePcmWavMode: boolean; // MediaRecorderを使わずPCM→WAVで送信
   vadThresholdDb: number;
   vadHangoverMs: number;
   vadSilenceTurnMs: number;
@@ -43,12 +46,15 @@ export type Settings = {
 };
 
 const DEFAULTS: Settings = {
-  apiProvider: "groq",
+  apiProvider: "openai",
   sttViaProxy: (typeof process !== "undefined" ? (process as any).env?.NEXT_PUBLIC_STT_VIA_PROXY : undefined) === "1",
   sttEnabled: true,
+  sttForceWav: false,
   translateEnabled: true,
   language: "ja",
   targetLanguage: "en",
+  liveChunkSeconds: 3,
+  livePcmWavMode: true,
   vadThresholdDb: 12,
   vadHangoverMs: 200,
   vadSilenceTurnMs: 600,
@@ -75,7 +81,7 @@ const DEFAULTS: Settings = {
   translateUseDictionary: true,
   showLiveTimestamps: true,
   chunkImportEnabled: true,
-  chunkSeconds: 15,
+  chunkSeconds: 60,
   wakeLockEnabled: true,
 };
 

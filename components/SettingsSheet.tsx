@@ -16,27 +16,18 @@ export default function SettingsSheet() {
           <span>プロバイダ</span>
           <div className="flex gap-2">
             <Button
-              variant={settings.apiProvider === "groq" ? "default" : "outline"}
-              onClick={() => setSettings({ ...settings, apiProvider: "groq" })}
-            >
-              Groq
-            </Button>
-            <Button
               variant={settings.apiProvider === "openai" ? "default" : "outline"}
               onClick={() => setSettings({ ...settings, apiProvider: "openai" })}
             >
               OpenAI
             </Button>
+            <Button
+              variant={settings.apiProvider === "groq" ? "default" : "outline"}
+              onClick={() => setSettings({ ...settings, apiProvider: "groq" })}
+            >
+              Groq
+            </Button>
           </div>
-        </label>
-        <label className="grid gap-1 text-sm">
-          <span>Groq API Key</span>
-          <Input
-            type="password"
-            placeholder="gsk_..."
-            value={settings.groqApiKey ?? ""}
-            onChange={(e) => setSettings({ ...settings, groqApiKey: e.target.value })}
-          />
         </label>
         <label className="grid gap-1 text-sm">
           <span>OpenAI API Key</span>
@@ -47,11 +38,34 @@ export default function SettingsSheet() {
             onChange={(e) => setSettings({ ...settings, openaiApiKey: e.target.value })}
           />
         </label>
+        <label className="grid gap-1 text-sm">
+          <span>Groq API Key</span>
+          <Input
+            type="password"
+            placeholder="gsk_..."
+            value={settings.groqApiKey ?? ""}
+            onChange={(e) => setSettings({ ...settings, groqApiKey: e.target.value })}
+          />
+        </label>
         <div className="flex items-center justify-between">
           <div className="text-sm">STTをプロキシ経由にする（CORS対策）</div>
           <Switch
             checked={settings.sttViaProxy}
             onCheckedChange={(v) => setSettings({ ...settings, sttViaProxy: v })}
+          />
+        </div>
+        <div className="flex items-center justify-between">
+          <div className="text-sm">互換性優先: 常時WAVに変換（負荷↑）</div>
+          <Switch
+            checked={settings.sttForceWav}
+            onCheckedChange={(v) => setSettings({ ...settings, sttForceWav: v })}
+          />
+        </div>
+        <div className="flex items-center justify-between">
+          <div className="text-sm">ライブ録音をPCM→WAVで送信（MediaRecorderを使用しない）</div>
+          <Switch
+            checked={settings.livePcmWavMode}
+            onCheckedChange={(v) => setSettings({ ...settings, livePcmWavMode: v })}
           />
         </div>
         <div className="flex items-center justify-between">
@@ -133,6 +147,22 @@ export default function SettingsSheet() {
                 type="number"
                 value={settings.vadSilenceTurnMs}
                 onChange={(e) => setSettings({ ...settings, vadSilenceTurnMs: Number(e.target.value) })}
+              />
+            </label>
+          </div>
+        </div>
+        <div className="grid gap-2">
+          <div className="text-sm font-medium">録音（ライブ）</div>
+          <div className="grid grid-cols-3 gap-2">
+            <label className="grid gap-1 text-sm">
+              <span>チャンク秒数</span>
+              <Input
+                type="number"
+                value={settings.liveChunkSeconds}
+                onChange={(e) => setSettings({ ...settings, liveChunkSeconds: Math.max(0.5, Math.min(5, Number(e.target.value))) })}
+                min={0.5}
+                max={5}
+                step={0.5}
               />
             </label>
           </div>
