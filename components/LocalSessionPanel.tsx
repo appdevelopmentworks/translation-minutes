@@ -191,12 +191,16 @@ export default function LocalSessionPanel({ lines, segments, translated, speaker
           ))}
         </div>
       </div>
-      <div className="flex items-center gap-2">
-        <Button variant="outline" onClick={exportJson}>JSONエクスポート</Button>
-        <input type="file" accept="application/json" onChange={(e) => e.target.files && importJson(e.target.files[0])} />
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+        <Button className="w-full sm:w-auto" variant="outline" onClick={exportJson}>JSONエクスポート</Button>
+        <input
+          className="w-full sm:w-auto text-sm"
+          type="file"
+          accept="application/json"
+          onChange={(e) => e.target.files && importJson(e.target.files[0])}
+        />
       </div>
       {msg && <div className="text-xs text-muted-foreground">{msg}</div>}
     </Card>
   );
 }
-
