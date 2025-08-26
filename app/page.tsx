@@ -109,13 +109,14 @@ function PageInner({
   const settingsView = <SettingsView />;
 
   const titleMap: Record<Tab, string> = { record: "録音", edit: "編集", export: "出力", settings: "設定" };
+  const MotionSection: any = m.section as any;
 
   return (
     <>
       <AppBar title={`Translation Minutes — ${titleMap[tab]}`} />
       <main className="space-y-4">
         <AnimatePresence mode="wait">
-          <m.section
+          <MotionSection
             key={tab}
             initial={{ opacity: 0, x: 10 }}
             animate={{ opacity: 1, x: 0 }}
@@ -127,7 +128,7 @@ function PageInner({
             {tab === "edit" && edit}
             {tab === "export" && exp}
             {tab === "settings" && settingsView}
-          </m.section>
+          </MotionSection>
         </AnimatePresence>
       </main>
       <BottomNav current={tab} onChange={setTab} />
