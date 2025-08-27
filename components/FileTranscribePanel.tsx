@@ -9,21 +9,81 @@ import { splitTextToSentences, autoClusterAB } from "@/lib/processing/segment";
 import type { TranscriptSegment } from "@/lib/transcript/types";
 import { encodeWavMono, downmixToMono } from "@/lib/audio/wav";
 import { useToast } from "@/lib/state/toast";
+import { useDictionary } from "@/lib/state/dictionary";
+import { applyMappings } from "@/lib/dictionary/mapping";
 
 type Props = {
   onAppend: (lines: string[], segments: TranscriptSegment[]) => void;
+  onTranslate?: (text: string) => void;
 };
 
-export default function FileTranscribePanel({ onAppend }: Props) {
+export default function FileTranscribePanel({ onAppend, onTranslate }: Props) {
   const { settings } = useSettings();
+  const { mappings } = useDictionary();
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string>("");
   const [progress, setProgress] = useState<number>(0);
   const toast = useToast();
 
+  // 翻訳キュー（最大2並列、約250ms間隔）
+  const queue: { items: string[]; inFlight: number; lastStart: number } = { items: [], inFlight: 0, lastStart: 0 };
+  const maybeStartTranslate = async () => {
+    if (!settings.translateEnabled || !onTranslate) return;
+    const apiKey = settings.apiProvider === "groq" ? settings.groqApiKey : settings.openaiApiKey;
+    if (!apiKey) return;
+    const maxParallel = 2;
+    while (queue.inFlight < maxParallel && queue.items.length > 0) {
+      const since = Date.now() - queue.lastStart;
+      const delay = since >= 250 ? 0 : 250 - since;
+      const text = queue.items.shift()!;
+      queue.inFlight++;
+      setTimeout(async () => {
+        queue.lastStart = Date.now();
+        try {
+          const res = await fetch("/api/llm/complete", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              task: "translate",
+              provider: settings.apiProvider,
+              apiKey,
+              text,
+              sourceLang: settings.language,
+              targetLang: settings.targetLanguage,
+              options: { translationFormality: settings.translationFormality },
+            }),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (res.ok && data?.output) onTranslate?.(data.output);
+        } catch {}
+        queue.inFlight--;
+        if (queue.items.length > 0) maybeStartTranslate();
+      }, delay);
+    }
+  };
+  const enqueueTranslations = (texts: string[]) => {
+    if (!settings.translateEnabled || !onTranslate) return;
+    for (const t of texts) {
+      if (!t || !t.trim()) continue;
+      const base = t.trim();
+      const withDict = settings.translateUseDictionary && mappings?.length ? applyMappings(base, mappings) : base;
+      queue.items.push(withDict);
+    }
+    // コレース: キューが膨らみすぎないよう古いものを間引く
+    if (queue.items.length > 50) queue.items.splice(0, queue.items.length - 50);
+    void maybeStartTranslate();
+  };
+
   const onFile = async (file: File) => {
     if (!settings.sttEnabled) {
       setMsg("設定でSTT送信がOFFになっています");
+      return;
+    }
+    const hasKey = !!(settings.groqApiKey?.trim() || settings.openaiApiKey?.trim());
+    if (!hasKey) {
+      const m = "APIキーが設定されていません（設定 > OpenAI/Groq）";
+      setMsg(m);
+      toast.show(m, "error");
       return;
     }
     setBusy(true);
@@ -59,21 +119,32 @@ export default function FileTranscribePanel({ onAppend }: Props) {
           const slice = mono.subarray(start, end);
           const wav = encodeWavMono(slice, sr);
           const res = await stt.transcribe(wav as any as Blob, { language: settings.language });
+          const newSentences: string[] = [];
+          const newSegs: TranscriptSegment[] = [];
           if (Array.isArray(res.segments) && res.segments.length > 0) {
             for (const [j, s] of res.segments.entries()) {
               const text = basicPunctuate(removeFillers(s.text || ""));
               if (!text) continue;
               const startMs = (i * chunkSec * 1000) + (typeof s.start === "number" ? Math.floor(s.start * 1000) : 0);
               const endMs = (i * chunkSec * 1000) + (typeof s.end === "number" ? Math.floor(s.end * 1000) : undefined as any);
-              segs.push({ id: `${Date.now()}-${i}-${j}`, text, speaker: (segs.length % 2 ? "B" : "A"), startMs, endMs });
-              sentences.push(text);
+              const seg = { id: `${Date.now()}-${i}-${j}`, text, speaker: ((segs.length + newSegs.length) % 2 ? "B" : "A"), startMs, endMs } as TranscriptSegment;
+              newSegs.push(seg);
+              newSentences.push(text);
             }
           } else {
             const text = basicPunctuate(removeFillers(res.text || ""));
             if (text) {
-              segs.push({ id: `${Date.now()}-${i}`, text, speaker: (segs.length % 2 ? "B" : "A"), startMs: i * chunkSec * 1000 });
-              sentences.push(text);
+              const seg = { id: `${Date.now()}-${i}`, text, speaker: ((segs.length + newSegs.length) % 2 ? "B" : "A"), startMs: i * chunkSec * 1000 } as TranscriptSegment;
+              newSegs.push(seg);
+              newSentences.push(text);
             }
+          }
+          // 即時反映（インクリメンタル）
+          if (newSentences.length || newSegs.length) {
+            sentences.push(...newSentences);
+            segs.push(...newSegs);
+            onAppend(newSentences, newSegs);
+            enqueueTranslations(newSentences);
           }
           completed++;
           setProgress(Math.round((completed / totalChunks) * 100));
@@ -90,8 +161,6 @@ export default function FileTranscribePanel({ onAppend }: Props) {
           })());
         }
         await Promise.all(workers);
-        // After building, auto-cluster by time gaps
-        segs = autoClusterAB(segs, settings.vadSilenceTurnMs);
       } else {
         const res = await stt.transcribe(file, { language: settings.language });
         const text = basicPunctuate(removeFillers(res.text || ""));
@@ -106,7 +175,7 @@ export default function FileTranscribePanel({ onAppend }: Props) {
               endMs: typeof s.end === "number" ? Math.max(0, Math.floor(s.end * 1000)) : undefined,
             }));
           sentences = segs.map((s) => s.text);
-          segs = autoClusterAB(segs, settings.vadSilenceTurnMs);
+          // 逐次反映は不要（単発）
         } else {
           sentences = splitTextToSentences(text);
           const now = Date.now();
@@ -116,11 +185,16 @@ export default function FileTranscribePanel({ onAppend }: Props) {
             speaker: i % 2 === 0 ? "A" : "B",
             startMs: i * 2000,
           }));
-          segs = autoClusterAB(segs, settings.vadSilenceTurnMs);
         }
         setProgress(100);
+        onAppend(sentences, segs);
+        enqueueTranslations(sentences);
+        // ここでは onAppend 済みのため return して二重追加を回避
+        const doneMsg = `取り込み完了: ${sentences.length} 文`;
+        setMsg(doneMsg);
+        toast.show(doneMsg, "success");
+        return;
       }
-      onAppend(sentences, segs);
       const doneMsg = `取り込み完了: ${sentences.length} 文`;
       setMsg(doneMsg);
       toast.show(doneMsg, "success");
@@ -135,11 +209,11 @@ export default function FileTranscribePanel({ onAppend }: Props) {
 
   return (
     <Card className="space-y-3">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="text-sm font-medium">音声ファイル取り込み（mp3/wav/m4a/webm）</div>
         <div className="text-xs text-muted-foreground">一括文字起こし</div>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-wrap">
         <input
           type="file"
           accept="audio/*,.m4a,.mp3,.wav,.webm"

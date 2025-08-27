@@ -100,6 +100,14 @@ export default function RecorderControls({ onTranscript, onSegment, onTranslate,
       sttQueueRef.current = [];
       return;
     }
+    const hasKey = !!(settings.groqApiKey?.trim() || settings.openaiApiKey?.trim());
+    if (!hasKey) {
+      // キー未設定時は処理を止めて案内
+      sttQueueRef.current = [];
+      setPending(false);
+      toast.show("APIキーが設定されていません（設定 > OpenAI/Groq）", "error");
+      return;
+    }
     // spawn workers up to max parallel
     while (sttActiveRef.current < STT_MAX_PARALLEL && sttQueueRef.current.length > 0) {
       const blob = sttQueueRef.current.shift()!;

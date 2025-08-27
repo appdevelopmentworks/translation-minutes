@@ -54,6 +54,12 @@ function PageInner({
           setLines((prev: string[]) => [...prev, ...newLines]);
           setSegments((prev: TranscriptSegment[]) => [...prev, ...newSegs]);
         }}
+        onTranslate={(t) => {
+          flushSync(() => {
+            if (t) setTranslated((prev: string[]) => [...prev, t]);
+            setLiveTick((n) => n + 1);
+          });
+        }}
       />
       <div className="flex items-center gap-2 text-sm">
         <span className={`inline-flex h-2 w-2 rounded-full ${isRecording ? "bg-red-500 animate-pulse" : "bg-muted"}`} />
